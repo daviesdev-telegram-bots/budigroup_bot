@@ -9,6 +9,7 @@ base = declarative_base()
 class User(base):
     __tablename__ = "user"
     id = Column(String, primary_key=True)
+    is_registered = Column(Boolean, default=False)
     is_disabled = Column(Boolean, default=True)
     balance = Column(Float, default=0)
 

@@ -15,7 +15,8 @@ class Admin:
     
     def register_kb(chat_id):
         kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton("✅Accept", "admin_control_membership:"+str(chat_id)), InlineKeyboardButton("⛔Ignore", "admin_ignore_member"))
+        kb.add(InlineKeyboardButton("✅Accept", callback_data="admin_register_user:"+str(chat_id)), InlineKeyboardButton("⛔Ignore", callback_data="admin_ignore_member"))
+        return kb
     
     def edit_balance_kb():
         kb = InlineKeyboardMarkup()
