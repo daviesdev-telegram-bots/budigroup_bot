@@ -1,11 +1,22 @@
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from utils import services as all_services
 
 register_kb = InlineKeyboardMarkup()
 register_kb.add(InlineKeyboardButton("Register", callback_data="register"))
 
 general_kb = ReplyKeyboardMarkup()
+general_kb.add(KeyboardButton("🛍️Order Goods"), KeyboardButton("🤖Order Service"))
 general_kb.add(KeyboardButton("👤Account"), KeyboardButton("🕑Order History"))
 general_kb.add(KeyboardButton("📞Support"))
+
+def services_kb(services):
+    services_kb = InlineKeyboardMarkup()
+    services_kb.add(InlineKeyboardButton("🔍Search", callback_data="search_service"))
+    services_kb.add(*[InlineKeyboardButton(i, callback_data="s_"+all_services[i]) for i in services])
+    return services_kb
+
+def back_btn(step="back"):
+    return InlineKeyboardButton("back", callback_data=step)
 
 class Admin:
     kb = InlineKeyboardMarkup()
@@ -37,6 +48,5 @@ class Admin:
             kb.add(Admin.back_btn())
             return kb
             
-
     def back_btn(step="admin_home"):
         return InlineKeyboardButton("back", callback_data=step)
