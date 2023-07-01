@@ -1,6 +1,6 @@
-from sqlalchemy import Float, create_engine, Column, Boolean, String
+from sqlalchemy import Float, create_engine, Column, Boolean, String, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 import dotenv, os
 dotenv.load_dotenv()
 
@@ -12,6 +12,17 @@ class User(base):
     is_registered = Column(Boolean, default=False)
     is_disabled = Column(Boolean, default=True)
     balance = Column(Float, default=0)
+    orders = relationship("Order")
+
+class Order(base):
+    __tablename__ = "order"
+    id = Column(String, primary_key=True)
+    activation_id = Column(Integer)
+    phone_number = Column(String)
+    country_code = Column(String)
+    service = Column(String)
+    type = Column(String)
+    user = Column(String, ForeignKey("user.id"))
 
 engine = create_engine(os.getenv("DB_URL"))
 connection = engine.connect()

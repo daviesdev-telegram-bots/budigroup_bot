@@ -1,12 +1,8 @@
-from models import User, session
+from models import User, session, Order
 import json
 
 def verfiy_float(text):
-    try:
-        amt = float(text)
-    except:
-        return None
-    return amt
+    return float(text) if text.isdigit() else None
 
 def get_user(uid):
     user = session.query(User).get(str(uid))
@@ -20,8 +16,15 @@ def get_balance(user_id):
     user = session.query(User).get(str(user_id))
     return user.balance if user else 0.0
 
-with open("countries.json") as f:
-    countries = json.load(f)
+def load_file(file_name: str):
+    with open(file_name) as f:
+        return json.load(f)
+
+def save_file(data, file_name:str):
+    with open(file_name, "w") as f:
+        json.dump(data, f)
+
+countries = json.loads(load_file("countries.json"))
 
 services = {
   "Telegram": "tg",
