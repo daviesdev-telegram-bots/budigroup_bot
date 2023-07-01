@@ -1,4 +1,4 @@
-from sqlalchemy import Float, create_engine, Column, Boolean, String, Integer, ForeignKey
+from sqlalchemy import Float, create_engine, Column, Boolean, String, Integer, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import dotenv, os
@@ -17,10 +17,11 @@ class User(base):
 class Order(base):
     __tablename__ = "order"
     id = Column(String, primary_key=True)
-    activation_id = Column(Integer)
-    phone_number = Column(String)
-    country_code = Column(String)
-    service = Column(String)
+    activation_id = Column(Integer, nullable=True)
+    phone_number = Column(String, nullable=True)
+    country_code = Column(String, nullable=True)
+    service = Column(String, nullable=True)
+    text = Column(Text, nullable=True)
     type = Column(String)
     user = Column(String, ForeignKey("user.id"))
 

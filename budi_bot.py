@@ -12,6 +12,7 @@ from utils import get_balance, get_user, verfiy_float, session, User, services, 
 sa = SMSActivateAPI(os.getenv("SMS_ACTIVATE_APIKEY"))
 owners = json.loads(os.getenv("owners"))
 bot = TeleBot(bot_token, parse_mode="HTML")
+support = "https://t.me/daviesdev"
 
 @bot.message_handler(["start"])
 def start(message: Message):
@@ -61,6 +62,9 @@ def callback_query_handler(callback: CallbackQuery):
         bot.edit_message_text("Send the first letters of the service you want to search", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(back_btn("order_service")))
         bot.register_next_step_handler(message, search_service)
 
+    elif data == "order_goods":
+        bot.edit_message_text("What kind of good do you want to buy?", message.chat.id, message.id, reply_markup=goods_types_kb)
+
     elif data == "order_service":
         bot.edit_message_text("What service do you want to order?.\nIf the service is not listed here, just click \"🔍Search\"", message.chat.id,message.id, reply_markup=services_kb(list(services)[:20]))
 
@@ -84,6 +88,8 @@ def callback_query_handler(callback: CallbackQuery):
             activation_id = number_data["activationId"]
             phone_number = number_data["phoneNumber"]
             country = number_data["countryCode"]
+            user = get_user(message.chat.id)
+            user.balance -= float(number_data["activationCost"])*4
             order = Order(activation_id=activation_id, phone_number=phone_number, country_code=country, service=service, type="service", user=str(message.chat.id))
             session.add(order)
             session.commit()
@@ -92,9 +98,34 @@ def callback_query_handler(callback: CallbackQuery):
             bot.edit_message_text("Something went wrong. Please try again later.", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(back_btn("order_service")))
 
     elif data.startswith("good"):
-        good_type = data.split("_")[-1]
-        if good_type == "ig":
-            pass
+        good = data.split(":")[-1]
+        prices = load_file("prices.json")
+        if good == "ig":
+            bot.edit_message_text(f"<b>Purchase Instagram Account</b>\n\nPrice: <b>{prices['instagram']} points</b>", message.chat.id, message.id, reply_markup=buy_good_kb("instagram"))
+        elif good == "vcc":
+            bot.edit_message_text(f"<b>Purchase VCC</b>\n\nPrice: <b>{prices['vcc']} points</b>", message.chat.id, message.id, reply_markup=buy_good_kb(good))
+
+    elif data.startswith("buy_good"):
+        _, good = data.split(":")
+        prices = load_file("prices.json")
+        user = get_user(message.chat.id)
+        if user.balance < prices[good]:
+            kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Top up Points", support)).add(back_btn("order_goods"))
+            bot.edit_message_text(f"Not enough points to purchase this good\nYou need additional <b>{prices[good]-user.balance} points</b> to pay for this good", message.chat.id, message.id, reply_markup=kb)
+            return
+        file = load_file(good+".json")
+        delivery_data = file[0]
+        file.pop(0)
+        save_file(file, good+".json")
+        user.balance -= prices[good]
+        order = Order(text=json.dumps(delivery_data), type="goods")
+        session.add(order)
+        session.commit()
+        if good == "instagram":
+            text = "User: {}\nPassword: {}\nCookies: {}".format(*delivery_data)
+        else:
+            text = delivery_data
+        bot.send_message("<b>Purchase Successful</b>\n\n"+text, message.chat.id, message.id)
 
     elif data == "back":
         pass
