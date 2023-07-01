@@ -114,18 +114,21 @@ def callback_query_handler(callback: CallbackQuery):
             bot.edit_message_text(f"Not enough points to purchase this good\nYou need additional <b>{prices[good]-user.balance} points</b> to pay for this good", message.chat.id, message.id, reply_markup=kb)
             return
         file = load_file(good+".json")
+        if len(file) <= 0:
+            bot.edit_message_text(f"Out of stock.\nPlease, check again later", message.chat.id, message.id, reply_markup=kb)
+            return
         delivery_data = file[0]
         file.pop(0)
-        save_file(file, good+".json")
         user.balance -= prices[good]
-        order = Order(text=json.dumps(delivery_data), type="goods")
+        order = Order(text=json.dumps(delivery_data), type="goods", user=user.id)
         session.add(order)
         session.commit()
+        save_file(file, good+".json")
         if good == "instagram":
             text = "User: {}\nPassword: {}\nCookies: {}".format(*delivery_data)
         else:
-            text = delivery_data
-        bot.send_message("<b>Purchase Successful</b>\n\n"+text, message.chat.id, message.id)
+            text = "\n".join(delivery_data)
+        bot.edit_message_text("<b>Purchase Successful</b>\n\n"+text, message.chat.id, message.id)
 
     elif data == "back":
         pass
@@ -178,17 +181,38 @@ def callback_query_handler(callback: CallbackQuery):
             bot.edit_message_text("Select what good you want to edit", message.chat.id, message.id, reply_markup=Admin.edit_goods_kb)
         
         elif data.startswith("add_goods"):
-            _, good = data.split(":")
+            good = data.split(":")[-1]
             bot.edit_message_text(f"Send the a .txt file for the new {good} goods", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(Admin.back_btn("admin_edit:"+good)))
             bot.register_next_step_handler(message, add_goods, good)
 
+        elif data.startswith("price_change_goods"):
+            good = data.split(":")[-1]
+            bot.edit_message_text(f"Send the price you want to set for "+good+" goods", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(Admin.back_btn("admin_edit:"+good)))
+            bot.register_next_step_handler(message, change_goods_price, good)
+
         elif data.startswith("edit"):
-            _, good = data.split(":")
+            good = data.split(":")[-1]
             bot.edit_message_text("What property of "+good+" do you want to edit?", message.chat.id, message.id, reply_markup=Admin.edit_good_kb(good))
 
         elif data == "home":
             bot.edit_message_text("Welcome to the admin panel.", reply_markup=Admin.kb, chat_id=message.chat.id, message_id=message.id)
         return
+
+def change_goods_price(message:Message, good:str):
+    if is_cancel(message): return
+    if not message.text:
+        bot.send_message(message.chat.id, "Send a text message")
+        bot.register_next_step_handler(message, change_goods_price, good)
+        return
+    amt = verfiy_float(message.text)
+    if not amt:
+        bot.send_message(message.chat.id, "Send a valid number. Try again")
+        bot.register_next_step_handler(message, change_goods_price, good)
+        return
+    file = load_file("prices.json")
+    file[good.lower()] = amt
+    save_file(file, "prices.json")
+    bot.send_message(message.chat.id, "The price for "+good+" goods has been set to "+str(amt)+" points", reply_markup=InlineKeyboardMarkup().add(Admin.back_btn("admin_edit:"+good)))
 
 def add_goods(message: Message, good:str):
     if is_cancel(message): return
@@ -204,10 +228,15 @@ def add_goods(message: Message, good:str):
     try:
         data = []
         for line in file.decode().split("\n"):
+            if len(line.split(sep)) < 2:
+                continue
             user, password, cookies, *other = line.split(sep)
             data.append((user, password, cookies[1:] if sep == ":" else cookies, *other))
-        save_file(load_file(filename).extend(data))
-    except:
+        f = load_file(filename)
+        f.extend(data)
+        save_file(f, filename)
+    except Exception as e:
+        print(e)
         bot.send_message(message.chat.id, "This file has a fault and cannot be adcded.", reply_markup=kb)
     else:
         bot.send_message(message.chat.id, "This file has been added successfully in "+good, reply_markup=kb)
@@ -315,7 +344,6 @@ def select_country(message:Message, service:str, response:dict):
             kb.add(back_btn("order_service"))
             bot.send_message(message.chat.id, f"Order summary:\n\nService: <b>{service}</b>\nCountry: <b>{countries[country]}</b>\nPrice: <b>{price*4} points</b>", reply_markup=kb)
             break
-
 
 print("Started")
 bot.infinity_polling()

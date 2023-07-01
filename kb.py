@@ -38,6 +38,7 @@ class Admin:
 
     edit_goods_kb = InlineKeyboardMarkup()
     edit_goods_kb.add(InlineKeyboardButton("Instagram", callback_data="admin_edit:Instagram"), InlineKeyboardButton("VCC", callback_data="admin_edit:VCC"))
+    edit_goods_kb.add(back_btn("admin_home"))
 
     edit_balance_kb = InlineKeyboardMarkup()
     edit_balance_kb.add(InlineKeyboardButton("Add balance", callback_data="admin_add_balance"), InlineKeyboardButton("Change balance", callback_data="admin_alter_balance"))
@@ -45,7 +46,8 @@ class Admin:
 
     def edit_good_kb(good):
         kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton(f"Add {good}", callback_data=f"admin_add_goods:{good}"), InlineKeyboardButton(f"Change price", callback_data=f"admin_price_change_goods:{good}"))
+        kb.add(InlineKeyboardButton(f"Add {good} data", callback_data=f"admin_add_goods:{good}"), InlineKeyboardButton(f"Change price", callback_data=f"admin_price_change_goods:{good}"))
+        kb.add(Admin.back_btn("admin_edit_goods"))
         return kb
 
     def register_kb(chat_id):

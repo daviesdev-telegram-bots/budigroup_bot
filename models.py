@@ -16,7 +16,7 @@ class User(base):
 
 class Order(base):
     __tablename__ = "order"
-    id = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True)
     activation_id = Column(Integer, nullable=True)
     phone_number = Column(String, nullable=True)
     country_code = Column(String, nullable=True)

@@ -24,9 +24,7 @@ def save_file(data, file_name:str):
     with open(file_name, "w") as f:
         json.dump(data, f)
 
-
-
-countries = json.loads(load_file("countries.json"))
+countries = load_file("countries.json")
 
 services = {
   "Telegram": "tg",
