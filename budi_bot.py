@@ -18,9 +18,9 @@ support = "https://t.me/daviesdev"
 def start(message: Message):
     user = session.query(User).get(str(message.chat.id))
     if not user or not user.is_registered:
-        bot.send_message(message.chat.id, f"Welcome {message.chat.username}.\nYour ID: `{message.chat.id}`\nYou don't have an account yet. Click the button below to register", parse_mode="markdown", reply_markup=register_kb)
+        bot.send_message(message.chat.id, f"Welcome <b>{message.chat.username}</b>.\n🪪Your ID: `{message.chat.id}`\nYou don't have an account yet. Click the button below to register📝", parse_mode="markdown", reply_markup=register_kb)
         return
-    bot.send_message(message.chat.id, f"Welcome {message.chat.username}.\n\n🪪Your ID: `{message.chat.id}`\n💰Balance: {user.balance} points", parse_mode="markdown", reply_markup=general_kb)
+    bot.send_message(message.chat.id, f"Welcome <b>{message.chat.username}</b>.\n\n🪪Your ID: `{message.chat.id}`\n💰Balance: {user.balance} points", parse_mode="markdown", reply_markup=general_kb)
 
 @bot.message_handler(["admin"], func=lambda msg: msg.chat.id in owners)
 def admin(message: Message):
@@ -54,16 +54,16 @@ def callback_query_handler(callback: CallbackQuery):
 
     if data == "register":
         user = get_user(message.chat.id)
-        bot.edit_message_text("<b>Your registration has been sent!.</b>\nYou will be notified when you have been approved", message.chat.id, message.id)
+        bot.edit_message_text("<b>Your registration has been sent✅!.</b>\nYou will be notified when you have been approved", message.chat.id, message.id)
         for i in owners:
             bot.send_message(i, f"@{message.chat.username} has sent a membership request\nUser ID: `{message.chat.id}`", parse_mode="markdown", reply_markup=Admin.register_kb(message.chat.id))
 
     elif data == "search_service":
-        bot.edit_message_text("Send the first letters of the service you want to search", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(back_btn("order_service")))
+        bot.edit_message_text("Send the first letters of the service you want to search🔍", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(back_btn("order_service")))
         bot.register_next_step_handler(message, search_service)
 
     elif data == "order_goods":
-        bot.edit_message_text("What kind of good do you want to buy?", message.chat.id, message.id, reply_markup=goods_types_kb)
+        bot.edit_message_text("What kind of goods do you want to buy?", message.chat.id, message.id, reply_markup=goods_types_kb)
 
     elif data == "order_service":
         bot.edit_message_text("What service do you want to order?.\nIf the service is not listed here, just click \"🔍Search\"", message.chat.id,message.id, reply_markup=services_kb(list(services)[:20]))
@@ -93,7 +93,7 @@ def callback_query_handler(callback: CallbackQuery):
             order = Order(activation_id=activation_id, phone_number=phone_number, country_code=country, service=service, type="service", user=str(message.chat.id))
             session.add(order)
             session.commit()
-            bot.edit_message_text(f"Purchase Successful\n\nActivation ID: `{activation_id}`\nPhone: `{phone_number}`\nCountry: {countries[country]}\nService: {service}", parse_mode="markdown")
+            bot.edit_message_text(f"Purchase Successful✅\n\nActivation ID: `{activation_id}`\nPhone: `{phone_number}`\nCountry: {countries[country]}\nService: {service}", parse_mode="markdown")
         else:
             bot.edit_message_text("Something went wrong. Please try again later.", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(back_btn("order_service")))
 
@@ -101,21 +101,21 @@ def callback_query_handler(callback: CallbackQuery):
         good = data.split(":")[-1]
         prices = load_file("prices.json")
         if good == "ig":
-            bot.edit_message_text(f"<b>Purchase Instagram Account</b>\n\nPrice: <b>{prices['instagram']} points</b>", message.chat.id, message.id, reply_markup=buy_good_kb("instagram"))
+            bot.edit_message_text(f"<b>🛒Purchase Instagram Account</b>\n\n🪙Price: <b>{prices['instagram']} points</b>", message.chat.id, message.id, reply_markup=buy_good_kb("instagram"))
         elif good == "vcc":
-            bot.edit_message_text(f"<b>Purchase VCC</b>\n\nPrice: <b>{prices['vcc']} points</b>", message.chat.id, message.id, reply_markup=buy_good_kb(good))
+            bot.edit_message_text(f"<b>🛒Purchase VCC</b>\n\nPrice: <b>🪙{prices['vcc']} points</b>", message.chat.id, message.id, reply_markup=buy_good_kb(good))
 
     elif data.startswith("buy_good"):
         _, good = data.split(":")
         prices = load_file("prices.json")
         user = get_user(message.chat.id)
         if user.balance < prices[good]:
-            kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Top up Points", support)).add(back_btn("order_goods"))
-            bot.edit_message_text(f"Not enough points to purchase this good\nYou need additional <b>{prices[good]-user.balance} points</b> to pay for this good", message.chat.id, message.id, reply_markup=kb)
+            kb = InlineKeyboardMarkup().add(InlineKeyboardButton("💲Top up Points", support)).add(back_btn("order_goods"))
+            bot.edit_message_text(f"😓Not enough points to purchase this good\nYou need extra <b>🪙{prices[good]-user.balance} points</b>", message.chat.id, message.id, reply_markup=kb)
             return
         file = load_file(good+".json")
         if len(file) <= 0:
-            bot.edit_message_text(f"Out of stock.\nPlease, check again later", message.chat.id, message.id, reply_markup=kb)
+            bot.edit_message_text(f"🚫Out of stock.\nPlease, check again later", message.chat.id, message.id, reply_markup=kb)
             return
         delivery_data = file[0]
         file.pop(0)
@@ -128,7 +128,7 @@ def callback_query_handler(callback: CallbackQuery):
             text = "User: {}\nPassword: {}\nCookies: {}".format(*delivery_data)
         else:
             text = "\n".join(delivery_data)
-        bot.edit_message_text("<b>Purchase Successful</b>\n\n"+text, message.chat.id, message.id)
+        bot.edit_message_text("<b>Purchase Successful</b>✅\n\n"+text, message.chat.id, message.id)
 
     elif data == "back":
         pass
@@ -279,8 +279,8 @@ def add_balance(message, user):
     user.balance += amt
     session.commit()
     username = bot.get_chat(user.id).username
-    bot.send_message(message.chat.id, f"You have added {amt} to {username}\nCurrent balance: {user.balance} points", reply_markup=Admin.back_btn("edit_balance"))
-    bot.send_message(user.id, f"{amt} has been added to your balance\nCurrent balance: {user.balance} points")
+    bot.send_message(message.chat.id, f"You have added {amt} to {username}\nCurrent balance: <b>{user.balance} points</b>", reply_markup=Admin.back_btn("edit_balance"))
+    bot.send_message(user.id, f"🪙<b>{amt} points</b> has been added to your balance\nCurrent balance: 🪙<b>{user.balance} points</b>")
 
 def alter_balance(message, user):
     if is_cancel(message): return
@@ -292,8 +292,8 @@ def alter_balance(message, user):
     user.balance = amt
     session.commit()
     username = bot.get_chat(user.id).username
-    bot.send_message(message.chat.id, f"You have overwritten {username}'s balance to {amt} points", reply_markup=Admin.back_btn("edit_balance"))
-    bot.send_message(user.id, f"Your balance has been updated by the admin\nCurrent balance: {user.balance} points")
+    bot.send_message(message.chat.id, f"You have overwritten @{username}'s balance to <b>{amt}</b> points", reply_markup=Admin.back_btn("edit_balance"))
+    bot.send_message(user.id, f"Your balance has been updated by the admin\nCurrent balance: 🪙<b>{user.balance} points</b>")
 
 def search_service(message: Message):
     if is_cancel(message): return
@@ -306,7 +306,7 @@ def search_service(message: Message):
         for i in services:
             if i.lower().startswith(message.text.lower()):
                 search_list.append(i)
-    bot.send_message(message.chat.id, "Search results", reply_markup=services_kb(search_list))
+    bot.send_message(message.chat.id, "Search results📜", reply_markup=services_kb(search_list))
 
 def is_cancel(message):
     if message.text == "/start":
@@ -327,9 +327,11 @@ def select_country(message:Message, service:str, response:dict):
         return
     if message.text.startswith("/"):
         country = message.text[1:]
+    else:
+        country = message.text
     
     if not country.isdigit() or not countries.get(country):
-        bot.send_message(message.chat.id, "Invalid Country code, try again")
+        bot.send_message(message.chat.id, "🚫Invalid Country code, try again")
         bot.register_next_step_handler(message, select_country, service, response)
         return
     for i in services:
@@ -342,7 +344,7 @@ def select_country(message:Message, service:str, response:dict):
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("Purchase", callback_data=f"purchase_smsactivate:{service}:{country}"))
             kb.add(back_btn("order_service"))
-            bot.send_message(message.chat.id, f"Order summary:\n\nService: <b>{service}</b>\nCountry: <b>{countries[country]}</b>\nPrice: <b>{price*4} points</b>", reply_markup=kb)
+            bot.send_message(message.chat.id, f"🛒Order summary:\n\nService: <b>{service}</b>\nCountry: <b>{countries[country]}</b>\nPrice: 🪙<b>{price*4} points</b>", reply_markup=kb)
             break
 
 print("Started")
