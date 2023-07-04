@@ -1,5 +1,5 @@
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from utils import services as all_services
+from utils import services as all_services, load_file
 
 register_kb = InlineKeyboardMarkup()
 register_kb.add(InlineKeyboardButton("📝Register", callback_data="register"))
@@ -10,8 +10,11 @@ general_kb.add(KeyboardButton("🛍️Order Goods"), KeyboardButton("🤖Order S
 general_kb.add(KeyboardButton("👤Account"), KeyboardButton("🕑Order History"))
 general_kb.add(KeyboardButton("📞Support"))
 
-goods_types_kb = InlineKeyboardMarkup()
-goods_types_kb.add(InlineKeyboardButton("📸Instagram accounts", callback_data="good:ig"), InlineKeyboardButton("VCC", callback_data="good:vcc"))
+def goods_types_kb():
+    data = load_file("data.json")["types"]
+    goods_types_kb = InlineKeyboardMarkup(row_width=2)
+    goods_types_kb.add(*[InlineKeyboardButton(i.title(), callback_data="good:"+i) for i in data])
+    return goods_types_kb
 
 def back_btn(step="back"):
     return InlineKeyboardButton("back", callback_data=step)
@@ -36,13 +39,17 @@ class Admin:
     kb.add(InlineKeyboardButton("Registrations", callback_data="admin_registrations"))
     kb.add(InlineKeyboardButton("Edit Goods", callback_data="admin_edit_goods"))
 
-    edit_goods_kb = InlineKeyboardMarkup()
-    edit_goods_kb.add(InlineKeyboardButton("Instagram", callback_data="admin_edit:Instagram"), InlineKeyboardButton("VCC", callback_data="admin_edit:VCC"))
-    edit_goods_kb.add(back_btn("admin_home"))
+    def edit_goods_kb():
+        data = load_file("data.json")["types"]
+        edit_goods_kb = InlineKeyboardMarkup(row_width=2)
+        edit_goods_kb.add(InlineKeyboardButton("➕Add good type", callback_data="admin_new_good"))
+        edit_goods_kb.add(*[InlineKeyboardButton(i.title(), callback_data="admin_edit:"+i) for i in data])
+        edit_goods_kb.add(back_btn("admin_home"))
+        return edit_goods_kb
 
     edit_balance_kb = InlineKeyboardMarkup()
     edit_balance_kb.add(InlineKeyboardButton("Add balance", callback_data="admin_add_balance"), InlineKeyboardButton("Change balance", callback_data="admin_alter_balance"))
-    edit_balance_kb.add(back_btn())
+    edit_balance_kb.add(back_btn("admin_home"))
 
     def edit_good_kb(good):
         kb = InlineKeyboardMarkup()
