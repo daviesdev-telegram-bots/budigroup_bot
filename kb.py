@@ -54,6 +54,7 @@ class Admin:
     def edit_good_kb(good):
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton(f"Add {good} data", callback_data=f"admin_add_goods:{good}"), InlineKeyboardButton(f"Change price", callback_data=f"admin_price_change_goods:{good}"))
+        kb.add(InlineKeyboardButton("Delete", callback_data="admin_delete_good:"+good))
         kb.add(Admin.back_btn("admin_edit_goods"))
         return kb
 
@@ -66,6 +67,7 @@ class Admin:
         def edit_membership(is_disabled, uid):
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("Turn On Membership" if is_disabled else "Turn Off Membership", callback_data=f"admin_control_membership:{uid}"))
+            kb.add(InlineKeyboardButton("❌Delete User", callback_data=f"admin_delete_user:{uid}"))
             kb.add(Admin.back_btn())
             return kb
             

@@ -202,6 +202,26 @@ def callback_query_handler(callback: CallbackQuery):
             good = data.split(":")[-1]
             bot.edit_message_text("What property of "+good+" do you want to edit?", message.chat.id, message.id, reply_markup=Admin.edit_good_kb(good))
 
+        elif data.startswith("delete_good:"):
+            _, good = data.split(":")
+            data = load_file("data.json")
+            try:
+                data["types"].remove(good)
+                data.pop(good)
+            except:
+                pass
+            else:
+                save_file(data, "data.json")
+            bot.edit_message_text(good+" deleted !", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(Admin.back_btn("admin_edit_goods")))
+
+
+        elif data.startswith("delete_user:"):
+            _, uid = data.split(":")
+            session.delete(session.query(User).get(uid))
+            session.commit()
+            username = bot.get_chat(uid).username
+            bot.edit_message_text(f"@{username} deleted!", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(Admin.back_btn()))
+
         elif data == "new_good":
             bot.edit_message_text("What is the name of the goods?", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(Admin.back_btn("admin_edit_goods")))
             bot.register_next_step_handler(message, new_goods_name)
@@ -248,7 +268,7 @@ def add_goods(message: Message, good:str):
     file = bot.download_file(bot.get_file(message.document.file_id).file_path)
     filename = good.lower()+".json"
     kb = InlineKeyboardMarkup().add(Admin.back_btn("admin_edit:"+good))
-    sep = ":" if good.lower() == "instagram" else "|"
+    sep = "|" if good.lower() == "vcc" else ":"
     try:
         data = []
         for line in file.decode().split("\n"):
@@ -303,7 +323,7 @@ def add_balance(message, user):
     user.balance += amt
     session.commit()
     username = bot.get_chat(user.id).username
-    bot.send_message(message.chat.id, f"You have added {amt} to {username}\nCurrent balance: <b>{user.balance} points</b>", reply_markup=Admin.back_btn("edit_balance"))
+    bot.send_message(message.chat.id, f"You have added {amt} to {username}\nCurrent balance: <b>{user.balance} points</b>", reply_markup=Admin.back_btn("admin_edit_balance"))
     bot.send_message(user.id, f"🪙<b>{amt} points</b> has been added to your balance\nCurrent balance: 🪙<b>{user.balance} points</b>")
 
 def alter_balance(message, user):
@@ -316,7 +336,7 @@ def alter_balance(message, user):
     user.balance = amt
     session.commit()
     username = bot.get_chat(user.id).username
-    bot.send_message(message.chat.id, f"You have overwritten @{username}'s balance to <b>{amt}</b> points", reply_markup=Admin.back_btn("edit_balance"))
+    bot.send_message(message.chat.id, f"You have overwritten @{username}'s balance to <b>{amt}</b> points", reply_markup=Admin.back_btn("admin_edit_balance"))
     bot.send_message(user.id, f"Your balance has been updated by the admin\nCurrent balance: 🪙<b>{user.balance} points</b>")
 
 def search_service(message: Message):

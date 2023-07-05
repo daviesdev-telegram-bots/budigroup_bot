@@ -2,7 +2,11 @@ from models import User, session, Order
 import json
 
 def verfiy_float(text):
-    return float(text) if text.isdigit() else None
+    try:
+        return float(text)
+    except:
+        return None
+          
 
 def get_user(uid):
     user = session.query(User).get(str(uid))
