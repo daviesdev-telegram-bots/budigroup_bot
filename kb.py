@@ -10,6 +10,13 @@ general_kb.add(KeyboardButton("🛍️Order Goods"), KeyboardButton("🤖Order S
 general_kb.add(KeyboardButton("👤Account"), KeyboardButton("🕑Order History"))
 general_kb.add(KeyboardButton("📞Support"))
 
+def service_order(order):
+    kb = InlineKeyboardMarkup()
+    if not order.delivered:
+        kb.add(InlineKeyboardButton("🔃Refresh", callback_data="refresh_service_history:"+str(order.id)), InlineKeyboardButton("❌Cancel", "cancel_service:"+str(order.activation_id)))
+    kb.add(back_btn("order_history"))
+    return kb
+
 def goods_types_kb():
     data = load_file("data.json")["types"]
     goods_types_kb = InlineKeyboardMarkup(row_width=2)
@@ -54,8 +61,7 @@ class Admin:
     def edit_good_kb(good):
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton(f"Add {good} data", callback_data=f"admin_add_goods:{good}"), InlineKeyboardButton(f"Change price", callback_data=f"admin_price_change_goods:{good}"))
-        kb.add(InlineKeyboardButton("Delete", callback_data="admin_delete_good:"+good))
-        kb.add(Admin.back_btn("admin_edit_goods"))
+        kb.add(InlineKeyboardButton("❌Delete", callback_data="admin_delete_good:"+good), Admin.back_btn("admin_edit_goods"))
         return kb
 
     def register_kb(chat_id):

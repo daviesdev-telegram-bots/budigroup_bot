@@ -1,4 +1,4 @@
-from sqlalchemy import Float, create_engine, Column, Boolean, String, Integer, ForeignKey, Text
+from sqlalchemy import Float, create_engine, Column, Boolean, String, Integer, ForeignKey, Text, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import dotenv, os
@@ -23,6 +23,9 @@ class Order(base):
     service = Column(String, nullable=True)
     text = Column(Text, nullable=True)
     type = Column(String)
+    time_created = Column(DateTime, default=func.now())
+    price = Column(Float)
+    delivered = Column(Boolean, default=False)
     user = Column(String, ForeignKey("user.id"))
 
 engine = create_engine(os.getenv("DB_URL"))

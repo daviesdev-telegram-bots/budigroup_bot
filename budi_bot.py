@@ -1,7 +1,8 @@
+import os, json
+from datetime import datetime
 from telebot import TeleBot
 from telebot.types import Message, CallbackQuery
 from kb import *
-import os, json
 from smsactivate.api import SMSActivateAPI
 from dotenv import load_dotenv
 load_dotenv()
@@ -44,7 +45,16 @@ def all_messages(message: Message):
     elif message.text == "🛍️Order Goods":
         bot.send_message(message.chat.id, "What kind of good do you want to buy?", reply_markup=goods_types_kb())
     elif message.text == "🕑Order History":
-        pass
+        orders = session.query(Order).filter_by(user=str(message.chat.id)).order_by(Order.time_created.desc()).limit(5).all()
+        arr = []
+        for order in orders:
+            if order.type == "service":
+                arr.append(f"<b>SMS Service - {order.time_created.strftime('%I:%M %p %d %b, %Y')}</b>\n/{order.id} +{order.phone_number} - {countries[order.country_code]}")
+            elif order.type == "goods":
+                arr.append(f"<b>{order.service} - {order.time_created.strftime('%I:%M %p %d %b, %Y')}</b>\n{order.text}")
+        text = "\n".join(arr)
+        bot.send_message(message.chat.id, "<b>Check out your previous orders here</b>\n\n"+text)
+        bot.register_next_step_handler(message, lookup_order)
     elif message.text == "📞Support":
         bot.send_message(message.chat.id, "Click the button below to contact support", reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Contact", support)))
 
@@ -71,6 +81,18 @@ def callback_query_handler(callback: CallbackQuery):
     elif data == "order_service":
         bot.edit_message_text("What service do you want to order?.\nIf the service is not listed here, just click \"🔍Search\"", message.chat.id,message.id, reply_markup=services_kb(list(services)[:20]))
 
+    elif data == "order_history":
+        orders = session.query(Order).filter_by(user=str(message.chat.id)).order_by(Order.time_created.desc()).limit(5).all()
+        arr = []
+        for order in orders:
+            if order.type == "service":
+                arr.append(f"<b>SMS Service - {order.time_created.strftime('%I:%M %p %d %b, %Y')}</b>\n/{order.id} +{order.phone_number} - {countries[order.country_code]}")
+            elif order.type == "goods":
+                arr.append(f"<b>{order.service} - {order.time_created.strftime('%I:%M %p %d %b, %Y')}</b>\n{order.text}")
+        text = "\n".join(arr)
+        bot.edit_message_text("<b>Check out your previous orders here</b>\n\n"+text, message.chat.id, message.id)
+        bot.register_next_step_handler(message, lookup_order)
+
     elif data.startswith("s_"):
         data = data[2:]
         res = sa.getTopCountriesByService(data)
@@ -85,18 +107,27 @@ def callback_query_handler(callback: CallbackQuery):
         bot.register_next_step_handler(message, select_country, data, res)
 
     elif data.startswith("purchase_smsactivate"):
-        _, service, country = data.split(":")
-        number_data = sa.getNumberV2(service, freePrice=True, maxPrice=10, verification=True, country=country)
+        _, service, service_name, country = data.split(":")
+        number_data = sa.getNumberV2(service, freePrice="true", maxPrice=40, country=country)
+        print(number_data)
+        if number_data.get("msg"):
+            if number_data["msg"] == "WRONG_MAX_PRICE":
+                number_data = sa.getNumberV2(service, freePrice="true", maxPrice=number_data["info"]["min"], country=country)
+        print(number_data)
         if number_data.get("activationId"):
             activation_id = number_data["activationId"]
             phone_number = number_data["phoneNumber"]
             country = number_data["countryCode"]
-            user = get_user(message.chat.id)
-            user.balance -= float(number_data["activationCost"])*4
-            order = Order(activation_id=activation_id, phone_number=phone_number, country_code=country, service=service, type="service", user=str(message.chat.id))
+            price = float(number_data["activationCost"])*4
+            if user.balance < price:
+                kb = InlineKeyboardMarkup().add(InlineKeyboardButton("💲Top up Points", support)).add(back_btn("order_goods"))
+                bot.edit_message_text(f"😓Not enough points to purchase this good\nYou need extra <b>🪙{price-user.balance} points</b>", message.chat.id, message.id, reply_markup=kb)
+                return
+            order = Order(activation_id=activation_id, phone_number=phone_number, country_code=country, service=service, type="service", user=str(message.chat.id), time_created=datetime.fromisoformat(number_data["activationTime"]), price=price)
             session.add(order)
             session.commit()
-            bot.edit_message_text(f"Purchase Successful✅\n\nActivation ID: `{activation_id}`\nPhone: `{phone_number}`\nCountry: {countries[country]}\nService: {service}", parse_mode="markdown")
+            bot.edit_message_text(f"Purchase Successful✅\n\nActivation ID: `{activation_id}`\nPhone: `+{phone_number}`\nCountry: {countries[country]}\nService: {service_name}\n\n_You can see this order in your Order History if you want to get the sms later_",
+                                  message.chat.id, message.id, parse_mode="markdown")
         elif number_data.get("NO_BALANCE"):
             for i in owners:
                 bot.send_message(i, "⚠️<b>WARNING</b>: Balance in SMS-Activate has finished")
@@ -110,8 +141,8 @@ def callback_query_handler(callback: CallbackQuery):
 
     elif data.startswith("buy_good"):
         _, good = data.split(":")
-        prices = load_file("data.json")
         user = get_user(message.chat.id)
+        prices = load_file("data.json")
         if user.balance < prices[good]:
             kb = InlineKeyboardMarkup().add(InlineKeyboardButton("💲Top up Points", support)).add(back_btn("order_goods"))
             bot.edit_message_text(f"😓Not enough points to purchase this good\nYou need extra <b>🪙{prices[good]-user.balance} points</b>", message.chat.id, message.id, reply_markup=kb)
@@ -123,16 +154,34 @@ def callback_query_handler(callback: CallbackQuery):
         delivery_data = file[0]
         file.pop(0)
         user.balance -= prices[good]
-        order = Order(text=json.dumps(delivery_data), type="goods", user=user.id)
+        order = Order(text=delivery_data, type="goods", user=user.id, price=prices[good], delivered=True, service=good.title())
         session.add(order)
         session.commit()
         save_file(file, good+".json")
-        if good == "instagram":
-            text = "User: {}\nPassword: {}\nCookies: {}".format(*delivery_data)
-        else:
-            text = "\n".join(delivery_data)
-        bot.edit_message_text("<b>Purchase Successful</b>✅\n\n"+text, message.chat.id, message.id)
+        bot.edit_message_text("<b>Purchase Successful</b>✅\n\n"+delivery_data, message.chat.id, message.id)
 
+    elif data.startswith("refresh_service_history"):
+        _, order_id = data.split(":")
+        order = session.query(Order).filter_by(id=order_id, user=str(message.chat.id)).first()
+        if order:
+            response = refresh_order(order)
+            bot.edit_message_text(response, message.chat.id, message.id, reply_markup=service_order(order))
+
+    elif data.startswith("cancel_service"):
+        _, activation_id = data.split(":")
+        order = session.query(Order).filter_by(activation_id=activation_id, user=str(message.chat.id)).first()
+        if order:
+            response = sa.setStatus(order.activation_id, status="8")
+            if response == "ACCESS_CANCEL":
+                get_user(message.chat.id).balance += order.price*4
+                session.delete(order)
+                session.commit()
+                bot.edit_message_text("This order has been canceled and deleted", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(back_btn("order_history")))
+            else:
+                bot.answer_callback_query(callback.id, "You cannot cancel this order", True)
+            return
+        bot.edit_message_text("This order does not exist", message.chat.id, message.id, reply_markup=InlineKeyboardMarkup().add(back_btn("order_history")))
+    
     elif data == "back":
         pass
 
@@ -238,8 +287,9 @@ def new_goods_name(message):
         return
     data = load_file("data.json")
     data["types"].append(message.text)
+    data[message.text] = 0
     save_file(data, "data.json")
-    bot.send_message(message.chat.id, message.text+" Created", reply_markup=InlineKeyboardMarkup().add(Admin.back_btn("admin_edit_goods")))
+    bot.send_message(message.chat.id, message.text+" Created.\nPrice is currently set to 0 points", reply_markup=InlineKeyboardMarkup().add(Admin.back_btn("admin_edit_goods")))
     
 
 def change_goods_price(message:Message, good:str):
@@ -268,14 +318,10 @@ def add_goods(message: Message, good:str):
     file = bot.download_file(bot.get_file(message.document.file_id).file_path)
     filename = good.lower()+".json"
     kb = InlineKeyboardMarkup().add(Admin.back_btn("admin_edit:"+good))
-    sep = "|" if good.lower() == "vcc" else ":"
     try:
         data = []
         for line in file.decode().split("\n"):
-            if len(line.split(sep)) < 2:
-                continue
-            user, password, cookies, *other = line.split(sep)
-            data.append((user, password, cookies[1:] if sep == ":" else cookies, *other))
+            data.append(line)
         f = load_file(filename)
         f.extend(data)
     except Exception as e:
@@ -353,6 +399,9 @@ def search_service(message: Message):
     bot.send_message(message.chat.id, "Search results📜", reply_markup=services_kb(search_list))
 
 def is_cancel(message):
+    if message.text in ["👤Account", "🤖Order Service", "🛍️Order Goods", "🕑Order History", "📞Support"]:
+        all_messages(message)
+        return True
     if message.text == "/start":
         bot.clear_reply_handlers(message)
         start(message)
@@ -380,16 +429,47 @@ def select_country(message:Message, service:str, response:dict):
         return
     for i in services:
         if services[i] == service:
-            service = i
+            service_name = i
             break
     for i in response:
         if response[i]["country"] == int(country):
             price = response[i]["retail_price"]
             kb = InlineKeyboardMarkup()
-            kb.add(InlineKeyboardButton("Purchase", callback_data=f"purchase_smsactivate:{service}:{country}"))
+            kb.add(InlineKeyboardButton("Purchase", callback_data=f"purchase_smsactivate:{service}:{service_name}:{country}"))
             kb.add(back_btn("order_service"))
-            bot.send_message(message.chat.id, f"🛒Order summary:\n\nService: <b>{service}</b>\nCountry: <b>{countries[country]}</b>\nPrice: 🪙<b>{price*4} points</b>", reply_markup=kb)
+            bot.send_message(message.chat.id, f"🛒Order summary:\n\nService: <b>{service_name}</b>\nCountry: <b>{countries[country]}</b>\nPrice: 🪙<b>{price*4} points</b>", reply_markup=kb)
             break
+
+def lookup_order(message):
+    if is_cancel(message): return
+    if not message.text:
+        bot.send_message(message.chat.id, "Send a text message", reply_markup=InlineKeyboardMarkup().add(back_btn("order_service")))
+        bot.register_next_step_handler(message, lookup_order)
+        return
+    if message.text.startswith("/"):
+        order_id = message.text[1:]
+    else:
+        order_id = message.text
+
+    if not order_id.isdigit():
+        bot.send_message(message.chat.id, "🚫Invalid OrderID, try again")
+        bot.register_next_step_handler(message, lookup_order)
+    order = session.query(Order).filter_by(id=int(order_id), user=str(message.chat.id)).first()
+    if not order:
+        bot.send_message(message.chat.id, "🚫Order not found😓")
+        bot.register_next_step_handler(message, lookup_order)
+
+    response = refresh_order(order)
+    bot.send_message(message.chat.id, response, reply_markup=service_order(order))
+
+def refresh_order(order):
+    response = sa.getStatus(order.activation_id)
+    if str(response).find("STATUS_OK") != -1:
+        user = get_user(order.user)
+        user.balance -= order.price*4
+        session.commit()
+    order.delivered = True
+    return response
 
 print("Started")
 bot.infinity_polling()
